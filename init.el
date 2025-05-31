@@ -366,6 +366,513 @@
   :config
   (evil-commentary-mode 1))
 
+
+;; --- EXWM (Emacs X Window Manager) Configuration ---
+;; Add this section after the Evil configuration and before Python setup
+
+(use-package exwm
+  :straight t
+  :config
+  ;; Basic EXWM configuration
+  (require 'exwm)
+  (require 'exwm-config)
+  (require 'exwm-systemtray)
+  
+  ;; Set the initial number of workspaces
+  (setq exwm-workspace-number 10)
+  
+  ;; Global keybindings for EXWM
+  (setq exwm-global-keys
+        `(
+          ;; Bind "s-r" to exit char-mode and fullscreen mode
+          ([?\s-r] . exwm-reset)
+          ;; Bind "s-w" to switch workspace interactively
+          ([?\s-w] . exwm-workspace-switch)
+          ;; Bind "s-0" to "s-9" to switch to a workspace by its index
+          ,@(mapcar (lambda (i)
+                      `(,(kbd (format "s-%d" i)) .
+                        (lambda ()
+                          (interactive)
+                          (exwm-workspace-switch-create ,i))))
+                    (number-sequence 0 9))
+          ;; Bind "s-&" to launch applications ('M-&' also works if you enable
+          ;; exwm-config-default)
+          ([?\s-&] . (lambda (command)
+                       (interactive (list (read-shell-command "$ ")))
+                       (start-process-shell-command command nil command)))
+          ;; Bind "s-<f2>" to "slock", a simple X display locker
+          ([s-f2] . (lambda ()
+                      (interactive)
+                      (start-process "" nil "/usr/bin/slock")))
+          ;; Window management
+          ([?\s-h] . windmove-left)
+          ([?\s-j] . windmove-down)
+          ([?\s-k] . windmove-up)
+          ([?\s-l] . windmove-right)
+          ([?\s-H] . exwm-layout-shrink-window-horizontally)
+          ([?\s-J] . exwm-layout-shrink-window)
+          ([?\s-K] . exwm-layout-enlarge-window)
+          ([?\s-L] . exwm-layout-enlarge-window-horizontally)
+          ([?\s-f] . exwm-layout-toggle-fullscreen)
+          ([?\s-m] . exwm-layout-toggle-mode-line)
+          ([?\s-q] . kill-current-buffer)
+          ([?\s-Q] . (lambda () (interactive) (kill-buffer (current-buffer))))
+          ;; Application launchers
+          ([?\s-t] . (lambda () (interactive) (start-process "" nil "alacritty")))
+          ([?\s-b] . (lambda () (interactive) (start-process "" nil "firefox")))
+          ([?\s-e] . (lambda () (interactive) (start-process "" nil "thunar")))
+          ([?\s-c] . (lambda () (interactive) (start-process "" nil "code")))
+          ([?\s-d] . (lambda () (interactive) (start-process "" nil "rofi" "-show" "drun")))
+          ;; Volume control (requires amixer)
+          ([XF86AudioRaiseVolume] . (lambda () (interactive) (start-process "" nil "amixer" "set" "Master" "5%+")))
+          ([XF86AudioLowerVolume] . (lambda () (interactive) (start-process "" nil "amixer" "set" "Master" "5%-")))
+          ([XF86AudioMute] . (lambda () (interactive) (start-process "" nil "amixer" "set" "Master" "toggle")))
+          ;; Brightness control (requires xbacklight or brightnessctl)
+          ([XF86MonBrightnessUp] . (lambda () (interactive) (start-process "" nil "brightnessctl" "set" "5%+")))
+          ([XF86MonBrightnessDown] . (lambda () (interactive) (start-process "" nil "brightnessctl" "set" "5%-")))
+          ;; Screenshot
+          ([print] . (lambda () (interactive) (start-process "" nil "scrot" "-s")))
+          ([?\s-p] . (lambda () (interactive) (start-process "" nil "scrot" "-s")))
+          ))
+
+  ;; Enable system tray
+  (exwm-systemtray-enable)
+  
+  ;; Line-editing shortcuts for X applications
+  (setq exwm-input-simulation-keys
+        '(
+          ;; movement
+          ([?\C-b] . [left])
+          ([?\M-b] . [C-left])
+          ([?\C-f] . [right])
+          ([?\M-f] . [C-right])
+          ([?\C-p] . [up])
+          ([?\C-n] . [down])
+          ([?\C-a] . [home])
+          ([?\C-e] . [end])
+          ([?\M-v] . [prior])
+          ([?\C-v] . [next])
+          ([?\C-d] . [delete])
+          ([?\C-k] . [S-end delete])
+          ;; cut/paste
+          ([?\C-w] . [?\C-x])
+          ([?\M-w] . [?\C-c])
+          ([?\C-y] . [?\C-v])
+          ;; search
+          ([?\C-s] . [?\C-f])))
+  
+  ;; Configure workspace names
+  (setq exwm-workspace-index-map
+        (lambda (index)
+          (let ((names '("1:Main" "2:Web" "3:Code" "4:Term" "5:Media" 
+                        "6:Doc" "7:Chat" "8:VM" "9:Misc" "0:Scratch")))
+            (nth index names))))
+  
+  ;; Update Evil leader keys for EXWM
+  (with-eval-after-load 'evil-leader
+    (evil-leader/set-key
+      ;; EXWM specific bindings
+      "x w" 'exwm-workspace-switch
+      "x r" 'exwm-reset
+      "x f" 'exwm-layout-toggle-fullscreen
+      "x m" 'exwm-layout-toggle-mode-line
+      "x s" 'exwm-workspace-swap
+      "x d" 'exwm-workspace-delete
+      "x a" 'exwm-workspace-add
+      "x o" 'exwm-layout-toggle-fullscreen
+      ;; Quick application launchers
+      "a t" '(lambda () (interactive) (start-process "" nil "alacritty"))
+      "a b" '(lambda () (interactive) (start-process "" nil "firefox"))
+      "a f" '(lambda () (interactive) (start-process "" nil "thunar"))
+      "a e" '(lambda () (interactive) (start-process "" nil "emacs"))
+      "a c" '(lambda () (interactive) (start-process "" nil "code"))
+      "a d" '(lambda () (interactive) (start-process "" nil "rofi" "-show" "drun"))
+      "a s" '(lambda () (interactive) (start-process "" nil "slack"))
+      "a z" '(lambda () (interactive) (start-process "" nil "zoom"))
+      "a v" '(lambda () (interactive) (start-process "" nil "vlc"))
+      "a g" '(lambda () (interactive) (start-process "" nil "gimp"))
+      "a i" '(lambda () (interactive) (start-process "" nil "inkscape"))
+      "a l" '(lambda () (interactive) (start-process "" nil "libreoffice"))
+      ;; System controls
+      "s l" '(lambda () (interactive) (start-process "" nil "slock"))
+      "s r" '(lambda () (interactive) (start-process "" nil "systemctl" "reboot"))
+      "s s" '(lambda () (interactive) (start-process "" nil "systemctl" "poweroff"))
+      "s h" '(lambda () (interactive) (start-process "" nil "systemctl" "hibernate"))
+      "s u" '(lambda () (interactive) (start-process "" nil "systemctl" "suspend"))
+      ))
+  
+  ;; Enable EXWM
+  (exwm-enable))
+
+;; Additional EXWM utilities
+(use-package exwm-randr
+  :straight t
+  :after exwm
+  :config
+  (setq exwm-randr-workspace-monitor-plist '(0 "eDP-1" 1 "HDMI-1"))
+  (add-hook 'exwm-randr-screen-change-hook
+            (lambda ()
+              (start-process-shell-command
+               "xrandr" nil "xrandr --output HDMI-1 --right-of eDP-1 --auto")))
+  (exwm-randr-enable))
+
+;; --- Modern Emacs Packages for 2025 ---
+
+;; Vertico - Modern completion UI
+(use-package vertico
+  :straight t
+  :init
+  (vertico-mode)
+  :config
+  (setq vertico-count 20)
+  (setq vertico-resize t)
+  (setq vertico-cycle t))
+
+;; Marginalia - Rich annotations for minibuffer completions
+(use-package marginalia
+  :straight t
+  :after vertico
+  :init
+  (marginalia-mode)
+  :config
+  (setq marginalia-annotators
+        '(marginalia-annotators-heavy marginalia-annotators-light nil)))
+
+;; Orderless - Flexible completion style
+(use-package orderless
+  :straight t
+  :config
+  (setq completion-styles '(orderless basic)
+        completion-category-overrides '((file (styles basic partial-completion)))))
+
+;; Consult - Enhanced search and navigation
+(use-package consult
+  :straight t
+  :bind (("C-s" . consult-line)
+         ("C-x b" . consult-buffer)
+         ("C-x C-r" . consult-recent-file)
+         ("C-x p b" . consult-project-buffer)
+         ("M-g g" . consult-goto-line)
+         ("M-g M-g" . consult-goto-line)
+         ("M-g i" . consult-imenu)
+         ("M-g I" . consult-imenu-multi)
+         ("M-s d" . consult-find)
+         ("M-s D" . consult-locate)
+         ("M-s g" . consult-grep)
+         ("M-s G" . consult-git-grep)
+         ("M-s r" . consult-ripgrep)
+         ("M-s l" . consult-line)
+         ("M-s L" . consult-line-multi)
+         ("M-s k" . consult-keep-lines)
+         ("M-s u" . consult-focus-lines)
+         ("M-s e" . consult-isearch-history)
+         :map isearch-mode-map
+         ("M-e" . consult-isearch-history)
+         ("M-s e" . consult-isearch-history)
+         ("M-s l" . consult-line)
+         ("M-s L" . consult-line-multi)
+         :map minibuffer-local-map
+         ("M-s" . consult-history)
+         ("M-r" . consult-history))
+  :config
+  ;; Configure consult with projectile
+  (setq consult-project-function #'projectile-project-root)
+  
+  ;; Add Evil leader bindings for consult
+  (with-eval-after-load 'evil-leader
+    (evil-leader/set-key
+      "s s" 'consult-line
+      "s p" 'consult-ripgrep
+      "s b" 'consult-buffer
+      "s f" 'consult-find
+      "s i" 'consult-imenu
+      "s o" 'consult-outline
+      "s m" 'consult-mark
+      "s y" 'consult-yank-pop)))
+
+;; Embark - Context-sensitive actions
+(use-package embark
+  :straight t
+  :bind (("C-;" . embark-act)
+         ("C-h B" . embark-bindings))
+  :config
+  (setq prefix-help-command #'embark-prefix-help-command))
+
+;; Embark-consult integration
+(use-package embark-consult
+  :straight t
+  :after (embark consult)
+  :demand t
+  :hook (embark-collect-mode . consult-preview-at-point-mode))
+
+;; Corfu - Modern completion-at-point
+(use-package corfu
+  :straight t
+  :init
+  (global-corfu-mode)
+  :config
+  (setq corfu-cycle t)
+  (setq corfu-auto t)
+  (setq corfu-auto-delay 0.2)
+  (setq corfu-auto-prefix 2)
+  (setq corfu-separator ?\s)
+  (setq corfu-quit-at-boundary nil)
+  (setq corfu-quit-no-match nil)
+  (setq corfu-preview-current nil)
+  (setq corfu-preselect-first nil)
+  (setq corfu-on-exact-match nil)
+  (setq corfu-scroll-margin 5))
+
+;; Cape - Completion at point extensions
+(use-package cape
+  :straight t
+  :init
+  (add-to-list 'completion-at-point-functions #'cape-file)
+  (add-to-list 'completion-at-point-functions #'cape-dabbrev)
+  (add-to-list 'completion-at-point-functions #'cape-keyword)
+  :config
+  (advice-add 'pcomplete-completions-at-point :around #'cape-wrap-silent)
+  (advice-add 'pcomplete-completions-at-point :around #'cape-wrap-purify))
+
+;; Treesit-auto - Automatic tree-sitter grammar installation
+(use-package treesit-auto
+  :straight t
+  :config
+  (setq treesit-auto-install 'prompt)
+  (global-treesit-auto-mode))
+
+;; Eglot enhancements (modern LSP alternative)
+(use-package eglot
+  :straight t
+  :hook ((python-mode . eglot-ensure)
+         (rust-mode . eglot-ensure)
+         (go-mode . eglot-ensure)
+         (typescript-mode . eglot-ensure)
+         (js-mode . eglot-ensure))
+  :config
+  (setq eglot-autoshutdown t)
+  (setq eglot-confirm-server-initiated-edits nil)
+  
+  ;; Add Evil leader bindings for Eglot
+  (with-eval-after-load 'evil-leader
+    (evil-leader/set-key
+      "e r" 'eglot-rename
+      "e d" 'eglot-find-declaration
+      "e D" 'eglot-find-definition
+      "e i" 'eglot-find-implementation
+      "e t" 'eglot-find-typeDefinition
+      "e R" 'eglot-find-references
+      "e s" 'eglot-signature-help
+      "e h" 'eldoc
+      "e a" 'eglot-code-actions
+      "e f" 'eglot-format-buffer
+      "e F" 'eglot-format)))
+
+;; Magit enhancements
+(use-package magit
+  :straight t
+  :config
+  ;; Add forge for GitHub/GitLab integration
+  (use-package forge
+    :straight t
+    :after magit))
+
+;; Modern file manager with Dirvish
+(use-package dirvish
+  :straight t
+  :init
+  (dirvish-override-dired-mode)
+  :custom
+  (dirvish-quick-access-entries
+   '(("h" "~/" "Home")
+     ("d" "~/Downloads/" "Downloads")
+     ("D" "~/Documents/" "Documents")
+     ("p" "~/Projects/" "Projects")
+     ("c" "~/.config/" "Config")
+     ("t" "/tmp/" "Temp")))
+  :config
+  (setq dirvish-mode-line-format
+        '(:left (sort file-time " " file-size symlink) :right (omit yank index)))
+  (setq dirvish-attributes
+        '(all-the-icons file-time file-size collapse subtree-state vc-state git-msg))
+  (setq delete-by-moving-to-trash t)
+  (setq dired-listing-switches
+        "-l --almost-all --human-readable --group-directories-first --no-group"))
+
+;; Vundo - Visual undo tree
+(use-package vundo
+  :straight t
+  :config
+  (setq vundo-glyph-alist vundo-unicode-symbols)
+  (setq vundo-compact-display t)
+  
+  ;; Add Evil leader binding
+  (with-eval-after-load 'evil-leader
+    (evil-leader/set-key "u v" 'vundo)))
+
+;; Popper - Popup management
+(use-package popper
+  :straight t
+  :bind (("C-`" . popper-toggle)
+         ("M-`" . popper-cycle)
+         ("C-M-`" . popper-toggle-type))
+  :init
+  (setq popper-reference-buffers
+        '("\\*Messages\\*"
+          "Output\\*$"
+          "\\*Async Shell Command\\*"
+          help-mode
+          compilation-mode))
+  (popper-mode +1)
+  (popper-echo-mode +1))
+
+;; Jinx - Modern spell checking
+(use-package jinx
+  :straight t
+  :hook (emacs-startup . global-jinx-mode)
+  :bind ([remap ispell-word] . jinx-correct-word)
+  :config
+  (setq jinx-languages "en_US"))
+
+;; PDF Tools for better PDF handling
+(use-package pdf-tools
+  :straight t
+  :config
+  (pdf-tools-install)
+  (setq-default pdf-view-display-size 'fit-width)
+  (define-key pdf-view-mode-map (kbd "C-s") 'isearch-forward))
+
+;; Dashboard for a modern startup screen
+(use-package dashboard
+  :straight t
+  :config
+  (dashboard-setup-startup-hook)
+  (setq dashboard-banner-logo-title "Welcome to Emacs Dashboard")
+  (setq dashboard-startup-banner 'logo)
+  (setq dashboard-center-content t)
+  (setq dashboard-items '((recents  . 10)
+                         (bookmarks . 5)
+                         (projects . 10)
+                         (agenda . 5)
+                         (registers . 5)))
+  (setq dashboard-set-heading-icons t)
+  (setq dashboard-set-file-icons t)
+  (setq dashboard-set-navigator t)
+  (setq dashboard-navigator-buttons
+        `(;; line1
+          ((,(all-the-icons-octicon "mark-github" :height 1.1 :v-adjust 0.0)
+            "Homepage"
+            "Browse homepage"
+            (lambda (&rest _) (browse-url "https://github.com")))
+           ("★" "Star" "Show stars" (lambda (&rest _) (show-all-tabs-mode)))
+           ("?" "" "?/h" #'show-help 'default)))))
+
+;; All-the-icons for better visual appearance
+(use-package all-the-icons
+  :straight t
+  :if (display-graphic-p))
+
+;; Nerd-icons (modern alternative to all-the-icons)
+(use-package nerd-icons
+  :straight t)
+
+;; Rainbow delimiters for better parentheses visibility
+(use-package rainbow-delimiters
+  :straight t
+  :hook (prog-mode . rainbow-delimiters-mode))
+
+;; Which-key posframe for better popup display
+(use-package which-key-posframe
+  :straight t
+  :after which-key
+  :config
+  (which-key-posframe-mode))
+
+;; Modern modeline with doom-modeline
+(use-package doom-modeline
+  :straight t
+  :init (doom-modeline-mode 1)
+  :config
+  (setq doom-modeline-height 25)
+  (setq doom-modeline-bar-width 3)
+  (setq doom-modeline-window-width-limit fill-column)
+  (setq doom-modeline-project-detection 'projectile)
+  (setq doom-modeline-buffer-file-name-style 'truncate-upto-project)
+  (setq doom-modeline-icon (display-graphic-p))
+  (setq doom-modeline-major-mode-icon t)
+  (setq doom-modeline-major-mode-color-icon t)
+  (setq doom-modeline-buffer-state-icon t)
+  (setq doom-modeline-buffer-modification-icon t)
+  (setq doom-modeline-minor-modes nil)
+  (setq doom-modeline-enable-word-count nil)
+  (setq doom-modeline-buffer-encoding t)
+  (setq doom-modeline-indent-info nil)
+  (setq doom-modeline-checker-simple-format t)
+  (setq doom-modeline-vcs-max-length 12)
+  (setq doom-modeline-env-version t)
+  (setq doom-modeline-irc-stylize 'identity)
+  (setq doom-modeline-github-timer nil)
+  (setq doom-modeline-gnus-timer nil))
+
+;; Centaur tabs for modern tab experience
+(use-package centaur-tabs
+  :straight t
+  :demand
+  :config
+  (centaur-tabs-mode t)
+  (setq centaur-tabs-style "bar")
+  (setq centaur-tabs-height 32)
+  (setq centaur-tabs-set-icons t)
+  (setq centaur-tabs-set-modified-marker t)
+  (setq centaur-tabs-show-navigation-buttons t)
+  (setq centaur-tabs-set-bar 'under)
+  (setq x-underline-at-descent-line t)
+  (centaur-tabs-headline-match)
+  (centaur-tabs-group-by-projectile-project)
+  
+  ;; Add Evil leader bindings for tabs
+  (with-eval-after-load 'evil-leader
+    (evil-leader/set-key
+      "t n" 'centaur-tabs-forward
+      "t p" 'centaur-tabs-backward
+      "t g" 'centaur-tabs-forward-group
+      "t G" 'centaur-tabs-backward-group
+      "t c" 'centaur-tabs--kill-this-buffer-dont-ask)))
+
+;; Helpful - Better help buffers
+(use-package helpful
+  :straight t
+  :bind (("C-h f" . helpful-callable)
+         ("C-h v" . helpful-variable)
+         ("C-h k" . helpful-key)
+         ("C-h x" . helpful-command)
+         ("C-h F" . helpful-function)
+         ("C-h M" . helpful-macro)))
+
+;; Avy for quick navigation
+(use-package avy
+  :straight t
+  :bind (("C-:" . avy-goto-char)
+         ("C-'" . avy-goto-char-2)
+         ("M-g f" . avy-goto-line)
+         ("M-g w" . avy-goto-word-1)
+         ("M-g e" . avy-goto-word-0))
+  :config
+  (setq avy-background t)
+  (setq avy-style 'at-full)
+  
+  ;; Add Evil leader bindings
+  (with-eval-after-load 'evil-leader
+    (evil-leader/set-key
+      "j c" 'avy-goto-char
+      "j l" 'avy-goto-line
+      "j w" 'avy-goto-word-1
+      "j e" 'avy-goto-word-0)))
+
+;; Modern Git interface with Transient
+(use-package transient
+  :straight t)
+
 ;; Optional: Better undo with undo-tree
 (use-package undo-tree
   :straight t
@@ -842,5 +1349,6 @@
                ;; (if (display-battery-mode) 'battery-status "")
                " "
                ))
+
 
 (provide 'init.el)
