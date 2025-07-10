@@ -1,327 +1,209 @@
-;; Guix System Configuration for EXWM Desktop Environment
-;; This configuration provides a complete desktop environment using EXWM as the window manager
+;; EXWM Desktop Environment Configuration for Guix
+;; This configuration sets up EXWM with essential desktop services
 
 (use-modules (gnu)
              (gnu system)
-             (gnu system nss)
              (gnu services)
-             (gnu services base)
              (gnu services desktop)
-             (gnu services networking)
              (gnu services xorg)
-             (gnu services sound)
-             (gnu services sddm)
-             (gnu services syncthing)
-             (gnu services virtualization)
+             (gnu services networking)
+             (gnu services audio)
+             (gnu services databases)
              (gnu services mcron)
              (gnu packages)
-             (gnu packages admin)
-             (gnu packages audio)
-             (gnu packages base)
-             (gnu packages bash)
-             (gnu packages cups)
-             (gnu packages desktop)
-             (gnu packages disk)
              (gnu packages emacs)
              (gnu packages emacs-xyz)
-             (gnu packages fonts)
-             (gnu packages fontutils)
-             (gnu packages freedesktop)
-             (gnu packages file)
-             (gnu packages game-development)
-             (gnu packages games)
-             (gnu packages gimp)
-             (gnu packages gnome)
-             (gnu packages gnupg)
-             (gnu packages graphics)
-             (gnu packages gstreamer)
-             (gnu packages gtk)
-             (gnu packages hunspell)
-             (gnu packages image)
-             (gnu packages image-viewers)
-             (gnu packages libreoffice)
-             (gnu packages linux)
-             (gnu packages mail)
-             (gnu packages music)
-             (gnu packages password-utils)
-             (gnu packages pdf)
-             (gnu packages photo)
-             (gnu packages pulseaudio)
-             (gnu packages python)
-             (gnu packages python-xyz)
-             (gnu packages rust-apps)
-             (gnu packages screen)
-             (gnu packages ssh)
-             (gnu packages syncthing)
-             (gnu packages terminals)
-             (gnu packages text-editors)
-             (gnu packages video)
-             (gnu packages virtualization)
              (gnu packages wm)
-             (gnu packages web-browsers)
-             (gnu packages xdisorg)
              (gnu packages xorg)
-             (nongnu packages linux)
-             (nongnu system linux-initrd))
+             (gnu packages fonts)
+             (gnu packages audio)
+             (gnu packages pulseaudio)
+             (gnu packages linux)
+             (gnu packages admin)
+             (gnu packages terminals)
+             (gnu packages web-browsers)
+             (gnu packages image-viewers)
+             (gnu packages pdf)
+             (gnu packages file-manager)
+             (gnu packages gnome)
+             (gnu packages freedesktop))
+
+(define exwm-desktop-service-type
+  (service-type
+   (name 'exwm-desktop)
+   (extensions
+    (list (service-extension
+           shepherd-root-service-type
+           (lambda (config)
+             (list (shepherd-service
+                    (provision '(exwm-desktop))
+                    (requirement '(user-processes host-name))
+                    (start #~(make-forkexec-constructor
+                              (list #$(file-append emacs "/bin/emacs")
+                                    "--eval" "(require 'exwm)"
+                                    "--eval" "(exwm-enable)")
+                              #:environment-variables
+                              '("DISPLAY=:0")))
+                    (stop #~(make-kill-destructor))))))
+          (service-extension
+           xorg-configuration-service-type
+           (lambda (config)
+             (xorg-configuration
+              (inherit config)
+              (server (xorg-server))
+              (keyboard-layout (keyboard-layout "us"))
+              (extra-config
+               (list "Section \"ServerFlags\"
+    Option \"DontVTSwitch\" \"true\"
+    Option \"DontZap\" \"false\"
+EndSection")))))))
+   (default-value #f)
+   (description "EXWM desktop environment service.")))
 
 (operating-system
-  ;; Use non-free Linux kernel for better hardware support
-  (kernel linux)
-  (initrd microcode-initrd)
-  (firmware (list linux-firmware))
-  
   (locale "en_US.utf8")
-  (timezone "America/New_York") ; Adjust to your timezone
+  (timezone "America/New_York")  ; Change to your timezone
   (keyboard-layout (keyboard-layout "us"))
-  
   (host-name "exwm-desktop")
-  
-  ;; User account
   (users (cons* (user-account
-                 (name "user") ; Change this to your preferred username
+                 (name "user")  ; Change to your username
                  (comment "EXWM User")
                  (group "users")
                  (home-directory "/home/user")
                  (supplementary-groups
-                  '("wheel" "netdev" "audio" "video" "lp" "cdrom" "kvm" "libvirt")))
+                  '("wheel" "netdev" "audio" "video")))
                 %base-user-accounts))
 
-  ;; Packages installed system-wide
   (packages
    (append
-    (list
-     ;; === Core Desktop Environment ===
-     emacs
-     emacs-exwm
-     emacs-desktop-environment
-     
-     ;; === Web Browsers ===
-     firefox
-     chromium
-     
-     ;; === Terminal Emulators ===
-     alacritty
-     foot
-     gnome-terminal
-     
-     ;; === File Managers ===
-     thunar
-     pcmanfm
-     ranger
-     
-     ;; === Text Editors ===
-     vim
-     neovim
-     
-     ;; === Development Tools ===
-     git
-     git-lfs
-     make
-     gcc-toolchain
-     python
-     python-pip
-     node
-     
-     ;; === System Utilities ===
-     htop
-     btop
-     tree
-     unzip
-     zip
-     curl
-     wget
-     rsync
-     
-     ;; === Audio/Video ===
-     pulseaudio
-     pavucontrol
-     alsa-utils
-     mpv
-     vlc
-     ffmpeg
-     
-     ;; === Graphics and Image ===
-     gimp
-     inkscape
-     feh
-     imagemagick
-     
-     ;; === Office Suite ===
-     libreoffice
-     
-     ;; === PDF Viewers ===
-     zathura
-     evince
-     
-     ;; === Network Tools ===
-     network-manager
-     network-manager-applet
-     openssh
-     
-     ;; === Fonts ===
-     font-fira-code
-     font-awesome
-     font-dejavu
-     font-liberation
-     font-gnu-freefont
-     font-google-noto
-     font-jetbrains-mono
-     
-     ;; === X11 Utilities ===
-     xorg-server
-     xrandr
-     xset
-     xsetroot
-     xprop
-     xwininfo
-     xdotool
-     scrot
-     maim
-     xclip
-     xsel
-     
-     ;; === Window Manager Utilities ===
-     rofi
-     dmenu
-     slock
-     dunst
-     
-     ;; === System Monitoring ===
-     neofetch
-     lm-sensors
-     
-     ;; === Archive Tools ===
-     p7zip
-     unrar
-     
-     ;; === Password Management ===
-     password-store
-     
-     ;; === Screen Brightness ===
-     brightnessctl
-     
-     ;; === Power Management ===
-     tlp
-     powertop
-     
-     ;; === Virtualization ===
-     qemu
-     virt-manager
-     
-     ;; === Additional Utilities ===
-     syncthing
-     redshift
-     bluez
-     bluez-alsa
-     )
+    (specifications->packages
+     '(;; Core EXWM packages
+       "emacs"
+       "emacs-exwm"
+       "emacs-desktop-environment"
+       
+       ;; Doom Emacs dependencies
+       "git"
+       "ripgrep"
+       "fd"
+       "emacs-vterm"
+       
+       ;; Essential desktop utilities
+       "dmenu"
+       "scrot"
+       "xorg-server"
+       "xrandr"
+       "xset"
+       "xsetroot"
+       "xprop"
+       "xwininfo"
+       "xkill"
+       
+       ;; Audio
+       "pulseaudio"
+       "pavucontrol"
+       "alsa-utils"
+       
+       ;; Network
+       "network-manager"
+       "network-manager-applet"
+       
+       ;; Fonts
+       "font-fira-code"
+       "font-awesome"
+       "font-dejavu"
+       "font-liberation"
+       
+       ;; Applications
+       "firefox"
+       "alacritty"
+       "thunar"
+       "feh"
+       "mpv"
+       "evince"
+       
+       ;; System utilities
+       "htop"
+       "neofetch"
+       "tree"
+       "unzip"
+       "zip"))
     %base-packages))
 
-  ;; System services
   (services
    (append
     (list
-     ;; === Display Manager ===
-     ;; Using mingetty with auto-login for seamless EXWM startup
-     (service mingetty-service-type
-              (mingetty-configuration
-               (tty "tty1")
-               (auto-login "user"))) ; Change "user" to your username
-     
-     ;; === X11 Service ===
-     (service xorg-server-service-type
-              (xorg-configuration
-               (keyboard-layout keyboard-layout)
-               (extra-config
-                (list "Section \"InputClass\"
-    Identifier \"Touchpad\"
-    MatchIsTouchpad \"on\"
-    Driver \"libinput\"
-    Option \"Tapping\" \"on\"
-    Option \"NaturalScrolling\" \"true\"
-    Option \"ClickMethod\" \"clickfinger\"
-EndSection"))))
-     
-     ;; === Network Services ===
+     ;; Basic desktop services
      (service network-manager-service-type)
      (service wpa-supplicant-service-type)
-     
-     ;; === Audio Services ===
-     (service pulseaudio-service-type)
-     
-     ;; === Bluetooth ===
      (service bluetooth-service-type)
-     
-     ;; === Power Management ===
-     (service tlp-service-type)
-     
-     ;; === Printing ===
      (service cups-service-type)
      
-     ;; === NTP Time Sync ===
-     (service ntp-service-type)
+     ;; Audio services
+     (service pulseaudio-service-type)
+     (service alsa-service-type)
      
-     ;; === SSH ===
-     (service openssh-service-type
-              (openssh-configuration
-               (openssh openssh-sans-x)
-               (port-number 22)))
+     ;; Display manager (minimal)
+     (service slim-service-type
+              (slim-configuration
+               (display ":0")
+               (vt "vt7")
+               (auto-login? #t)
+               (default-user "user")  ; Change to your username
+               (xorg-configuration
+                (xorg-configuration
+                 (keyboard-layout (keyboard-layout "us"))
+                 (extra-config
+                  (list "Section \"ServerFlags\"
+    Option \"DontVTSwitch\" \"true\"
+    Option \"DontZap\" \"false\"
+EndSection"))))))
      
-     ;; === Syncthing ===
-     (service syncthing-service-type
-              (syncthing-configuration (user "user"))) ; Change to your username
-     
-     ;; === Virtualization ===
-     (service libvirt-service-type)
-     (service virtlog-service-type)
-     
-     ;; === Cron Jobs ===
-     (service mcron-service-type)
-     
-     ;; === Desktop Services ===
-     (service elogind-service-type)
-     (service dbus-service-type)
-     (service polkit-service-type)
-     (service fontconfig-file-system-service)
-     
-     ;; === Base Services ===
-     (service guix-service-type)
-     (service special-files-service-type
-              `(("/usr/bin/env" ,(file-append coreutils "/bin/env"))
-                ("/bin/sh" ,(file-append bash "/bin/sh"))))
-     )
-    
-    ;; Remove gdm and other desktop services we don't need
-    (remove (lambda (service)
-              (or (eq? (service-kind service) gdm-service-type)
-                  (eq? (service-kind service) desktop-services)))
-            %base-services)))
+     ;; EXWM service
+     (simple-service 'exwm-config
+                     home-files-service-type
+                     `((".xinitrc"
+                        ,(plain-file "xinitrc"
+                                     "#!/bin/sh
+# Set up environment for EXWM
+export EDITOR=emacs
+export BROWSER=firefox
+export TERMINAL=alacritty
 
-  ;; Bootloader configuration
+# Start EXWM
+exec emacs --eval \"(progn (require 'exwm) (exwm-enable))\"
+"))))
+     
+     ;; Polkit for privilege escalation
+     (polkit-service-type))
+    
+    ;; Base services with modifications
+    (modify-services %base-services
+      (guix-service-type
+       config =>
+       (guix-configuration
+        (inherit config)
+        (substitute-urls
+         (append (list "https://ci.guix.gnu.org"
+                       "https://bordeaux.guix.gnu.org")
+                 %default-substitute-urls))
+        (authorized-keys
+         (append (list (local-file "./signing-key.pub" "signing-key.pub"))
+                 %default-authorized-guix-keys)))))))
+
   (bootloader
    (bootloader-configuration
-    (bootloader grub-efi-bootloader)
-    (targets (list "/boot/efi"))
+    (bootloader grub-bootloader)
+    (targets (list "/dev/vda"))  ; Change to your boot device
     (keyboard-layout keyboard-layout)))
 
-  ;; File systems
-  ;; NOTE: Adjust these mount points according to your actual partition setup
-  (file-systems
-   (cons* (file-system
-           (mount-point "/boot/efi")
-           (device (uuid "1234-ABCD"
-                         'fat32)) ; Replace with your actual EFI partition UUID
-           (type "vfat"))
-          (file-system
-           (mount-point "/")
-           (device (uuid "your-root-uuid"
-                         'ext4)) ; Replace with your actual root partition UUID
-           (type "ext4"))
-          %base-file-systems))
-
-  ;; Swap devices
   (swap-devices
    (list (swap-space
-          (target (uuid "your-swap-uuid"))))) ; Replace with your actual swap UUID
+          (target (uuid "db67426c-db92-4baf-be35-2781fee7a5a5")))))  ; Change to your swap UUID
 
-  ;; Name service switch
-  (name-service-switch %mdns-host-lookup-nss))
+  (file-systems
+   (cons* (file-system
+           (mount-point "/")
+           (device (uuid "421ed21a-ff9e-404f-b904-58345bbf4b06"))  ; Change to your root UUID
+           (type "ext4"))
+          %base-file-systems)))
